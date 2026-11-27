@@ -1,0 +1,20 @@
+FONTES DO PORTFÓLIO
+===================
+
+Baixe os arquivos e salve nesta pasta com EXATAMENTE estes nomes:
+
+1) Gambetta  (https://www.fontshare.com/fonts/gambetta)
+   -> Gambetta-Variable.woff2
+   -> Gambetta-VariableItalic.woff2
+
+2) Satoshi   (https://www.fontshare.com/fonts/satoshi)
+   -> Satoshi-Variable.woff2
+
+3) JetBrains Mono (https://www.jetbrains.com/lab/mono/ ou Google Fonts)
+   -> JetBrainsMono-Variable.woff2
+
+Dicas:
+- No Fontshare, clique em "Download family" e use os arquivos .woff2 variáveis.
+- Se vierem com outro nome, renomeie ou ajuste os nomes em css/fonts.css.
+- Depois de colocar as fontes, teste as letras ã, ç, õ, é e ê em um título.
+- Enquanto as fontes não estiverem aqui, o site usa fontes de reserva.

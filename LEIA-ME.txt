@@ -1,0 +1,1 @@
+Substitua os três arquivos do projeto por estes. Mantenha as pastas assets, fonts e img sem alterações. A linha 08 agora usa a mesma cor e aparência das demais etapas; o selo 'Obrigatório · comigo' foi removido. A informação sobre o plano mensal prestado por você permanece no texto explicativo.
