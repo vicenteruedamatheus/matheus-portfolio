@@ -135,8 +135,10 @@ window.SITE = {
     if (p == null) return;
     el.textContent = Array.isArray(p) ? brl(p[0]) + " a " + brl(p[1]) : brl(p);
   });
-  $$('[data-maintenance-price]').forEach(function (el) {
-    var p = SITE.maintenancePrices && SITE.maintenancePrices[el.getAttribute("data-maintenance-price")];
+  $$("[data-maintenance-price]").forEach(function (el) {
+    var p =
+      SITE.maintenancePrices &&
+      SITE.maintenancePrices[el.getAttribute("data-maintenance-price")];
     if (p == null) return;
     el.textContent = brl(p);
   });
@@ -364,6 +366,7 @@ window.SITE = {
     a.addEventListener("click", function () {
       var sel = $("#f-servico");
       sel.value = a.getAttribute("data-service");
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
       updatePreview();
     });
   });
@@ -537,6 +540,179 @@ window.SITE = {
     contato: $("#f-contato"),
   };
 
+  // Select personalizado do serviço
+  (function initServiceSelect() {
+    var select = F.servico;
+    if (!select) return;
+
+    var field = select.closest(".field");
+    if (!field) return;
+
+    select.classList.add("service-select-native");
+    select.setAttribute("tabindex", "-1");
+    select.setAttribute("aria-hidden", "true");
+
+    var wrapper = document.createElement("div");
+    wrapper.className = "service-select";
+
+    var trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "service-select__trigger";
+    trigger.setAttribute("role", "combobox");
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+
+    var value = document.createElement("span");
+    value.className = "service-select__value";
+
+    var arrow = document.createElement("span");
+    arrow.className = "service-select__arrow";
+    arrow.setAttribute("aria-hidden", "true");
+
+    trigger.append(value, arrow);
+
+    var list = document.createElement("ul");
+    list.className = "service-select__options";
+    list.setAttribute("role", "listbox");
+    list.id = "service-select-options";
+    trigger.setAttribute("aria-controls", list.id);
+
+    var optionButtons = [];
+
+    Array.from(select.options).forEach(function (option, index) {
+      var item = document.createElement("li");
+      item.setAttribute("role", "presentation");
+
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "service-select__option";
+      button.setAttribute("role", "option");
+      button.textContent = option.textContent;
+      button.dataset.value = option.value;
+
+      button.addEventListener("click", function () {
+        select.selectedIndex = index;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        close();
+        trigger.focus();
+      });
+
+      item.appendChild(button);
+      list.appendChild(item);
+      optionButtons.push(button);
+    });
+
+    wrapper.append(trigger, list);
+    select.insertAdjacentElement("afterend", wrapper);
+
+    function sync() {
+      var selected = select.selectedIndex;
+      var option = select.options[selected];
+
+      value.textContent = option ? option.textContent : "";
+      value.classList.toggle("is-placeholder", !select.value);
+
+      optionButtons.forEach(function (button, index) {
+        var active = index === selected;
+        button.setAttribute("aria-selected", String(active));
+      });
+
+      wrapper.classList.toggle(
+        "is-invalid",
+        select.getAttribute("aria-invalid") === "true",
+      );
+    }
+
+    function open() {
+      wrapper.classList.add("is-open");
+      trigger.setAttribute("aria-expanded", "true");
+
+      var selected = select.selectedIndex;
+      var target = optionButtons[selected] || optionButtons[0];
+
+      if (target) {
+        target.focus();
+      }
+    }
+
+    function close() {
+      wrapper.classList.remove("is-open");
+      trigger.setAttribute("aria-expanded", "false");
+    }
+
+    function moveFocus(direction) {
+      var current = optionButtons.indexOf(document.activeElement);
+      var next = current + direction;
+
+      next = Math.max(0, Math.min(next, optionButtons.length - 1));
+
+      if (optionButtons[next]) {
+        optionButtons[next].focus();
+      }
+    }
+
+    trigger.addEventListener("click", function () {
+      if (wrapper.classList.contains("is-open")) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    trigger.addEventListener("keydown", function (event) {
+      if (
+        event.key === "ArrowDown" ||
+        event.key === "Enter" ||
+        event.key === " "
+      ) {
+        event.preventDefault();
+        open();
+      }
+    });
+
+    list.addEventListener("keydown", function (event) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveFocus(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveFocus(-1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        optionButtons[0]?.focus();
+      } else if (event.key === "End") {
+        event.preventDefault();
+        optionButtons[optionButtons.length - 1]?.focus();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+        trigger.focus();
+      } else if (event.key === "Tab") {
+        close();
+      }
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!wrapper.contains(event.target)) {
+        close();
+      }
+    });
+
+    select.addEventListener("change", sync);
+
+    // Permite que a validação existente também destaque o novo campo.
+    var observer = new MutationObserver(sync);
+    observer.observe(select, {
+      attributes: true,
+      attributeFilter: ["aria-invalid"],
+    });
+
+    sync();
+
+    // Disponibiliza a sincronização para outros trechos do formulário.
+    select.syncCustomSelect = sync;
+  })();
+
   function buildMessage() {
     var nome = F.nome.value.trim(),
       emp = F.empresa.value.trim();
@@ -682,8 +858,12 @@ window.SITE = {
 // Só ativa em dispositivos com ponteiro preciso e quando o usuário
 // não solicitou redução de movimento.
 (function () {
-  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia(
+    "(hover: hover) and (pointer: fine)",
+  ).matches;
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
   const card = document.querySelector(".shot--gmud");
 
   if (!card || !finePointer || reduceMotion) return;
@@ -795,28 +975,39 @@ window.SITE = {
   });
 })();
 
-
 /* V3 · Spotlight ambiental: acompanha o ponteiro sem dependências externas. */
 (() => {
-  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia(
+    "(hover: hover) and (pointer: fine)",
+  ).matches;
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
   if (!finePointer || reduceMotion) return;
 
   const surfaces = document.querySelectorAll(
-    ".hero__stage, .services__back, .case--festas, .case--gmud"
+    ".hero__stage, .services__back, .case--festas, .case--gmud",
   );
   surfaces.forEach((surface) => {
-    surface.addEventListener("pointermove", (event) => {
-      const rect = surface.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      const x = ((event.clientX - rect.left) / rect.width) * 100;
-      const y = ((event.clientY - rect.top) / rect.height) * 100;
-      surface.style.setProperty("--spot-x", `${x}%`);
-      surface.style.setProperty("--spot-y", `${y}%`);
-    }, { passive: true });
-    surface.addEventListener("pointerleave", () => {
-      surface.style.setProperty("--spot-x", "50%");
-      surface.style.setProperty("--spot-y", "50%");
-    }, { passive: true });
+    surface.addEventListener(
+      "pointermove",
+      (event) => {
+        const rect = surface.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const x = ((event.clientX - rect.left) / rect.width) * 100;
+        const y = ((event.clientY - rect.top) / rect.height) * 100;
+        surface.style.setProperty("--spot-x", `${x}%`);
+        surface.style.setProperty("--spot-y", `${y}%`);
+      },
+      { passive: true },
+    );
+    surface.addEventListener(
+      "pointerleave",
+      () => {
+        surface.style.setProperty("--spot-x", "50%");
+        surface.style.setProperty("--spot-y", "50%");
+      },
+      { passive: true },
+    );
   });
 })();
